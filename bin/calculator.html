@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Scientific Calculator</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        .calculator { width: 300px; }
+        .display { width: 100%; height: 50px; text-align: right; font-size: 24px; margin-bottom: 10px; }
+        .buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+        button.active { background-color: #d0eaff; font-weight: bold;}
+        button { height: 50px; font-size: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="calculator">
+    <input type="text" id="display" class="display" readonly>
+    
+
+    <div class="buttons">
+        <button onclick="press('7')">7</button>
+        <button onclick="press('8')">8</button>
+        <button onclick="press('9')">9</button>
+        <button onclick="press('/')">/</button>
+
+        <button onclick="press('4')">4</button>
+        <button onclick="press('5')">5</button>
+        <button onclick="press('6')">6</button>
+        <button onclick="press('*')">*</button>
+
+        <button onclick="press('1')">1</button>
+        <button onclick="press('2')">2</button>
+        <button onclick="press('3')">3</button>
+        <button onclick="press('-')">-</button>
+
+        <button onclick="press('0')">0</button>
+        <button onclick="press('.')">.</button>
+        <button onclick="calculate()">=</button>
+        <button onclick="press('+')">+</button>
+
+        <button onclick="squareRoot()">√</button>
+        <button onclick="square()">x²</button>
+        <button onclick="memoryAdd()">M+</button>
+        <button onclick="memorySubtract()">M-</button>
+
+        <button onclick="memoryRecall()">MR</button>
+        <button onclick="memoryClear()">MC</button>
+        <button onclick="deleteLast()">Del</button>
+        <button onclick="clearDisplay()">C</button>
+    </div>
+    
+    
+    <p id="status" style="height: 24px; font-weight: bold; color: green;"></p>
+</div>
+
+<script>
+let expression = "";
+let memory = 0.0;
+let lastWasEquals = false;
+let decimalUsed = false;
+
+function press(num) {
+    // Clear active class from all buttons
+    document.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+
+    // Update status for any pressed button
+    document.getElementById('status').textContent = `Pressed: ${num}`;
+    
+    // Highlight the pressed button
+    const pressedButtons = Array.from(document.querySelectorAll('button')).filter(btn => 
+        btn.textContent === num || 
+        (num === '/' && btn.textContent === '/') ||
+        (num === '*' && btn.textContent === '*') ||
+        (num === '-' && btn.textContent === '-') ||
+        (num === '+' && btn.textContent === '+') ||
+        (num === '.' && btn.textContent === '.')
+    );
+    
+    if (pressedButtons.length) {
+        pressedButtons[0].classList.add('active');
+    }
+
+    if (lastWasEquals) {
+        expression = "";
+        lastWasEquals = false;
+        decimalUsed = false;
+    }
+
+    if (num === ".") {
+        if (decimalUsed) return;
+        if (expression === "" || isOperator(expression.slice(-1))) {
+            expression += "0";
+            updateDisplay("0.");
+        } else {
+            updateDisplay(document.getElementById('display').value + ".");
+        }
+        decimalUsed = true;
+        expression += ".";
+        return;
+    }
+
+    if (isOperator(num)) {
+        if (expression === "" || isOperator(expression.slice(-1))) return;
+        expression += num;
+        decimalUsed = false;
+        return;
+    }
+
+    if (isOperator(expression.slice(-1)) || expression === "") {
+        updateDisplay(num);
+    } else {
+        updateDisplay(document.getElementById('display').value + num);
+    }
+
+    expression += num;
+}
+
+function calculate() {
+    document.getElementById('status').textContent = `Pressed: =`;
+    try {
+        if (expression === "" || isOperator(expression.slice(-1))) throw "Invalid expression";
+        
+        // Check for division by zero
+        if (expression.includes("/0")) {
+            // Use regex to detect valid division by 0 like "5/0", not like "50/01"
+            const divideByZeroPattern = /\/0+(?!\d)/;
+            if (divideByZeroPattern.test(expression)) throw "Division by zero";
+        }
+
+        const result = eval(expression);
+        if (!isFinite(result)) throw "Invalid result";
+        updateDisplay(result);
+        expression = result.toString();
+        lastWasEquals = true;
+        decimalUsed = expression.includes(".");
+    } catch (e) {
+        showError();
+    }
+}
+
+function squareRoot() {
+    document.getElementById('status').textContent = `Pressed: √`;
+    try {
+        if (expression === "" || isOperator(expression.slice(-1))) throw "Invalid input";
+        let value = parseFloat(expression);
+        if (value < 0) throw "Negative square root";
+        let result = Math.sqrt(value);
+        updateDisplay(result);
+        expression = result.toString();
+        lastWasEquals = true;
+        decimalUsed = expression.includes(".");
+    } catch (e) {
+        showError();
+    }
+}
+
+function square() {
+    document.getElementById('status').textContent = `Pressed: x²`;
+    try {
+        if (expression === "" || isOperator(expression.slice(-1))) throw "Invalid input";
+        let value = parseFloat(expression);
+        let result = value * value;
+        updateDisplay(result);
+        expression = result.toString();
+        lastWasEquals = true;
+        decimalUsed = expression.includes(".");
+    } catch (e) {
+        showError();
+    }
+}
+
+function memoryAdd() {
+    document.getElementById('status').textContent = `Pressed: M+`;
+    if (lastWasEquals) {
+        try {
+            let value = parseFloat(expression);
+            if (isNaN(value)) throw "Invalid value";
+            memory += value;
+        } catch (e) {
+            showError();
+        }
+    } else {
+        showError();
+    }
+}
+
+function memorySubtract() {
+    document.getElementById('status').textContent = `Pressed: M-`;
+
+    try {
+        let value = parseFloat(expression);
+        if (isNaN(value)) throw "Invalid value";
+        if (memory === 0) throw "Memory is empty";
+        memory -= value;
+    } catch (e) {
+        showError();
+    }
+}
+
+
+
+function memoryRecall() {
+    document.getElementById('status').textContent = `Pressed: MR`;
+    if (expression === "" || isOperator(expression.slice(-1))) {
+        // If just pressed an operator (like -), then append memory
+        expression += memory.toString();
+    } else {
+        // Otherwise just replace (normal recall)
+        expression = memory.toString();
+    }
+    updateDisplay(memory.toString());
+    decimalUsed = expression.includes(".");
+    lastWasEquals = false;
+}
+
+function memoryClear() {
+    document.getElementById('status').textContent = `Pressed: MC`;
+    memory = 0.0;
+}
+
+function deleteLast() {
+    document.getElementById('status').textContent = `Pressed: Del`;
+    if (expression.length === 0) return;
+    if (expression.slice(-1) === ".") decimalUsed = false;
+    expression = expression.slice(0, -1);
+    updateDisplay(expression);
+}
+
+function clearDisplay() {
+    document.getElementById('status').textContent = `Pressed: C`;
+    expression = "";
+    memory = 0.0;
+    decimalUsed = false;
+    lastWasEquals = false;
+    updateDisplay("");
+}
+
+function isOperator(char) {
+    return ['+', '-', '*', '/'].includes(char);
+}
+
+function updateDisplay(value) {
+    document.getElementById('display').value = value;
+}
+
+function showError() {
+    document.getElementById('display').value = "Error";
+    expression = "";
+    decimalUsed = false;
+    lastWasEquals = false;
+}
+</script>
+
+</body>
+</html>
